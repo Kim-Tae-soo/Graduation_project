@@ -1,0 +1,128 @@
+#pragma once
+
+#include <Temp.h>
+#include <HeartBeat.h>
+#include <Motor.h>
+#include <StringTok.h>
+
+class ArduinoHub
+{
+    public:
+    ArduinoHub() {}
+
+    void HeartBeat(int nPurplePin)
+    {
+        hb.SetPort(nPurplePin);
+    }
+
+    void motor(int nMotorPort)
+    {
+        motor.setPort(nMotorPort);
+    }
+
+    void Temp()
+    {
+        tp.Ready();
+    }
+
+    void SetPin(int pinnum)
+    {   
+        pin = pinnum;
+        pinMode(pin, OUTPUT);
+    }
+
+    void Start()
+    {
+        while(true)
+        {
+            delay(100);
+
+            if (!stCmd.isEmpty() && stCmd.hasLine())
+            {
+                String sToken = parseCmd();
+                exeCmd(sToken);
+            }
+            
+            temp = tp.ReadTemp();
+            beat = hb.Beat();
+            BPM = hb.BPM();
+
+            Serial.print(temp);
+            Serial.print(" ");
+            Serial.print(beat);
+            Serial.print(" ");
+            Serial.println(BPM);
+        }
+    }
+
+    protected:
+    Temperature tp;
+    Heartbeat hb;    
+    Motor motor;
+    StringTok stCmd;
+
+    int pin;
+    float temp = 0.0;
+    int beat = 0;
+    int BPM = 0;
+
+    String getSerialInput()
+    {
+        StringTok stInput;
+        scans(stInput);
+
+        if (Serial.available() > 0)
+        {
+            stInput.appendSerial();
+
+            if (!stInput.isEmpty())
+            {
+                int nCheckLine = 0;
+
+                while (!stInput.hasLine())
+                {
+                    stInput.appendSerial();
+                    nCheckLine++;
+                    if (nCheckLine > 5)
+                    break;
+                }
+            }
+        }
+
+    return stInput.toString();
+    }
+
+    String parseCmd(void)
+    {
+        return stCmd.cutToken().toString();
+    }
+
+    void exeCmd(String sToken)
+    {
+        if (sToken == "move") { exeMove(); }
+        else if(sToken == "push") { exePin(); }
+        else { Serial.println("Error!"); }
+    }
+    
+    void exeMove()
+    {
+        String sToken = parseCmd();
+        int ang = sToken.toInt();
+        motor.move(ang);
+    }
+
+    void exePin()
+    {
+        if(digitalRead(pin) == LOW)
+        { // 버튼을 눌렸을 때,
+            digitalWrite(pin, HIGH);
+            Serial.println("ON");
+        }
+
+        else 
+        {
+            digitalWrite(pin, LOW);
+            Serial.println("OFF");
+        }
+    }
+};
